@@ -1,0 +1,5 @@
+.avatar-wrap { position: relative; display: inline-flex; margin-right: 8px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display:flex; align-items:center; justify-content:center; font-family:'Fira Code', monospace; font-size:12px; color:white; }
+.status { width: 8px; height: 8px; border-radius:50%; position:absolute; right:0; bottom:0; border:1px solid #161b22; }
+.online { background:#22c55e; }
+.offline { background:#6b7280; }

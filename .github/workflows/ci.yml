@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [server, client]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps
+        run: npm install
+        working-directory: ${{ matrix.app }}
+      - name: Build client
+        if: matrix.app == 'client'
+        run: npm run build
+        working-directory: client
+      - name: Run server smoke
+        if: matrix.app == 'server'
+        run: node -e "require('./src/index'); setTimeout(()=>process.exit(0), 2000)"
+        working-directory: server
