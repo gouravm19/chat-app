@@ -46,7 +46,9 @@ export function ChatPage() {
     http.get(`/api/rooms/${activeRoom._id}/messages`).then(({ data }) => {
       dispatch(setMessages({ roomId: activeRoom._id, messages: data }));
     });
-    return () => socket.emit('leave_room', { roomId: activeRoom._id, user });
+    return () => {
+      socket.emit('leave_room', { roomId: activeRoom._id, user });
+    };
   }, [activeRoom, dispatch, user]);
 
   const createRoom = async (name: string) => {
