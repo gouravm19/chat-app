@@ -7,6 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [server, client]
     steps:
@@ -15,8 +16,12 @@ jobs:
         with:
           node-version: 20
       - name: Install deps
-        run: npm install
+        run: npm ci
         working-directory: ${{ matrix.app }}
+      - name: Ensure client bin executables
+        if: matrix.app == 'client'
+        run: chmod +x node_modules/.bin/*
+        working-directory: client
       - name: Build client
         if: matrix.app == 'client'
         run: npm run build
