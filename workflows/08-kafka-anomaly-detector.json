@@ -1,0 +1,196 @@
+{
+  "name": "08 Kafka Consumer AI Anomaly Detector",
+  "nodes": [
+    {
+      "id": "02483596-e722-4ec8-8f17-b8ca2c1ba307",
+      "name": "10 Min Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        180,
+        280
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 10,
+              "unit": "minutes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d0c16a76-585a-4069-8253-0911940b6758",
+      "name": "Get Recent Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        400,
+        280
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/metrics/recent?minutes=10",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "a0fa1b08-31d3-45f1-a1e3-c8761d0695db",
+      "name": "Rolling Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        620,
+        280
+      ],
+      "parameters": {
+        "jsCode": "const points = $json.data || []; const vals = points.map(p=>p.value||0); const mean = vals.reduce((a,b)=>a+b,0)/(vals.length||1); const variance = vals.reduce((a,v)=>a+Math.pow(v-mean,2),0)/(vals.length||1); const std=Math.sqrt(variance); const anomalies=points.filter(p=>Math.abs((p.value||0)-mean)>2*std); return [{mean,std,anomalies,points}];"
+      }
+    },
+    {
+      "id": "ea05822d-bc4a-4a31-b4f6-25ea4c9fa2d8",
+      "name": "AI Explain Anomalies",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        840,
+        280
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Analyze anomalies (>2 std dev) and return JSON with possibleCause and recommendedAction: {{$json}}"
+      }
+    },
+    {
+      "id": "adc6b20c-4e1f-4757-a7c0-2c563ecab77f",
+      "name": "Has Anomalies?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        280
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{($json.anomalies || []).length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "61f27762-be57-4387-9b8f-c7ee03f711a9",
+      "name": "Save Anomaly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        220
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/anomalies/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    },
+    {
+      "id": "faa69d71-4616-4b10-a640-5cecfd8bdc54",
+      "name": "Update Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        360
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/metrics/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    }
+  ],
+  "connections": {
+    "10 Min Cron": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Metrics": {
+      "main": [
+        [
+          {
+            "node": "Rolling Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rolling Stats": {
+      "main": [
+        [
+          {
+            "node": "AI Explain Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Explain Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Has Anomalies?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Anomalies?": {
+      "main": [
+        [
+          {
+            "node": "Save Anomaly",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5721710e-a557-4f4c-a278-2a1e0766799a",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

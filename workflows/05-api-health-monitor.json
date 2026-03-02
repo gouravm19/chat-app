@@ -1,0 +1,195 @@
+{
+  "name": "05 API Health Monitor + Auto-Alert",
+  "nodes": [
+    {
+      "id": "405f5884-81a7-4b34-84e2-ef4bac6ccbbe",
+      "name": "5 Min Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        160,
+        280
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "518da45f-0713-4a75-b7ac-e5184010fe85",
+      "name": "Check API Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        380,
+        280
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/actuator/health",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "db44a61b-c11c-4100-a86b-950e0bd016ab",
+      "name": "Analyze Latency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        600,
+        280
+      ],
+      "parameters": {
+        "jsCode": "const ms = $json.responseTime || 120; return [{...$json, slow: ms>500, failed: ($json.statusCode||200)>=400}];"
+      }
+    },
+    {
+      "id": "78bfcda8-e71d-454f-bad0-1296275cb943",
+      "name": "Any failures?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        810,
+        280
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.failed || $json.slow}}",
+              "operation": "isTrue"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f3c781ad-95da-48f6-8efa-758da8f13eb9",
+      "name": "AI Incident Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        1030,
+        220
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Given API failures, likely causes and immediate actions: {{$json}}"
+      }
+    },
+    {
+      "id": "83b466a7-799e-4bc4-a0c8-7d287614f5e6",
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        220
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/incidents/log",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    },
+    {
+      "id": "5c131925-3a4f-4b87-b92d-c4208560b29f",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1030,
+        380
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/metrics/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    }
+  ],
+  "connections": {
+    "5 Min Cron": {
+      "main": [
+        [
+          {
+            "node": "Check API Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Health": {
+      "main": [
+        [
+          {
+            "node": "Analyze Latency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Latency": {
+      "main": [
+        [
+          {
+            "node": "Any failures?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any failures?": {
+      "main": [
+        [
+          {
+            "node": "AI Incident Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Incident Analysis": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1436d1f6-3ab8-41d4-9d1d-1fe8b4184707",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

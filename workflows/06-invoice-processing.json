@@ -1,0 +1,170 @@
+{
+  "name": "06 Automated Invoice Processing",
+  "nodes": [
+    {
+      "id": "ef315567-0a52-4b6b-8d26-88af59a762de",
+      "name": "Invoice Email Poll",
+      "type": "n8n-nodes-base.imap",
+      "typeVersion": 1,
+      "position": [
+        180,
+        280
+      ],
+      "parameters": {
+        "postProcessAction": "nothing",
+        "options": {},
+        "filters": {
+          "subject": "invoice"
+        }
+      }
+    },
+    {
+      "id": "0887c634-a422-4e6f-8190-b767df24dcac",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        400,
+        280
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/pdf/extract-text",
+        "method": "POST"
+      }
+    },
+    {
+      "id": "6129f177-f768-4bbd-964a-166334012472",
+      "name": "AI Invoice Extract",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        620,
+        280
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Extract invoice JSON fields from text: {{$json.text}}"
+      }
+    },
+    {
+      "id": "80687f06-0db3-4f2f-b950-2b072f78de2d",
+      "name": "Valid Invoice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        840,
+        280
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.invoiceNumber}}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b5b5add3-ff7c-48e7-986c-f3d8820bb43f",
+      "name": "Save Invoice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        220
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/invoices/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    },
+    {
+      "id": "ea3ff590-4672-49ec-9df3-3d2907ff5e86",
+      "name": "Needs Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        360
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "PENDING_REVIEW"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Invoice Email Poll": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "AI Invoice Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Invoice Extract": {
+      "main": [
+        [
+          {
+            "node": "Valid Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Save Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Needs Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "70a5a643-f2d5-4fc8-ac7f-ffd8127db092",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

@@ -1,0 +1,149 @@
+{
+  "name": "04 Customer Support Ticket AI Triage",
+  "nodes": [
+    {
+      "id": "a0b302a1-92be-4ced-9f6c-c728479084d3",
+      "name": "New Ticket Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        180,
+        280
+      ],
+      "parameters": {
+        "path": "new-ticket",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "id": "e4a865e4-c7ba-4cc7-92c2-6ec82f2f3443",
+      "name": "Classify Ticket",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        280
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Analyze support ticket and return JSON category/priority/sentiment/suggestedResponse/requiresHuman. Ticket: {{$json}}"
+      }
+    },
+    {
+      "id": "a1ec7fcc-c0fe-4011-992d-bb7e86dde863",
+      "name": "Route Category",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        620,
+        280
+      ],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.category}}",
+        "rules": [
+          {
+            "operation": "equal",
+            "value2": "BUG"
+          },
+          {
+            "operation": "equal",
+            "value2": "BILLING"
+          },
+          {
+            "operation": "equal",
+            "value2": "HOW-TO"
+          },
+          {
+            "operation": "equal",
+            "value2": "URGENT"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fddd99a3-7d21-4068-925a-fd5233adedcb",
+      "name": "Save Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        860,
+        280
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/webhook-data/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    }
+  ],
+  "connections": {
+    "New Ticket Webhook": {
+      "main": [
+        [
+          {
+            "node": "Classify Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Ticket": {
+      "main": [
+        [
+          {
+            "node": "Route Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Category": {
+      "main": [
+        [
+          {
+            "node": "Save Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8cecb293-3d20-4360-829e-3679fe20c825",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

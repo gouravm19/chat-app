@@ -1,0 +1,204 @@
+{
+  "name": "02 GitHub PR Code Review AI",
+  "nodes": [
+    {
+      "id": "415c6f33-9d56-4bdb-a0dd-6b68c3171763",
+      "name": "GitHub PR Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        180,
+        280
+      ],
+      "parameters": {
+        "path": "github-pr-review",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "id": "3e4d91b5-4874-467a-8233-6bc24d3b65df",
+      "name": "Fetch PR Files",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        390,
+        280
+      ],
+      "parameters": {
+        "url": "={{$json.pull_request.url}}/files",
+        "method": "GET",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "token {{$env.GITHUB_TOKEN}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "89c88d6c-9423-45e1-9e94-becb1e55e492",
+      "name": "Split Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        600,
+        280
+      ],
+      "parameters": {
+        "batchSize": 1
+      }
+    },
+    {
+      "id": "99c26f32-c461-466e-8ce8-09912619a0ba",
+      "name": "AI File Review",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        820,
+        280
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Review this code change for security, performance, code quality, and missing tests with line-level specifics: {{$json.patch}}"
+      }
+    },
+    {
+      "id": "ef8e0e64-eccd-41fe-9571-94f74b577c19",
+      "name": "Aggregate Summary",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        1030,
+        280
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Provide overall recommendation APPROVE/REQUEST_CHANGES/COMMENT for this PR review set: {{$json}}"
+      }
+    },
+    {
+      "id": "cfadf1d5-8af0-498f-b51b-df2004fc401d",
+      "name": "Post Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        280
+      ],
+      "parameters": {
+        "url": "={{$node[\"GitHub PR Webhook\"].json.pull_request.comments_url}}",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"body\": $json.text || 'Automated review completed.'}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "token {{$env.GITHUB_TOKEN}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e469fc79-cdd7-461e-af70-f8068d072873",
+      "name": "Save Review Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        280
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/metrics/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    }
+  ],
+  "connections": {
+    "GitHub PR Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch PR Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch PR Files": {
+      "main": [
+        [
+          {
+            "node": "Split Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Files": {
+      "main": [
+        [
+          {
+            "node": "AI File Review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "AI File Review": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Summary": {
+      "main": [
+        [
+          {
+            "node": "Post Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Comment": {
+      "main": [
+        [
+          {
+            "node": "Save Review Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "26faa80f-c21f-4c92-9368-a269bf76267e",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}
