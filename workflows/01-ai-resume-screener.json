@@ -1,0 +1,196 @@
+{
+  "name": "01 AI Resume Screener",
+  "nodes": [
+    {
+      "id": "4921a848-dad6-4ede-be6f-f48cda4f7862",
+      "name": "Resume Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "path": "resume-screen",
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "id": "4d36989d-f6a3-4e3a-b985-ef2061f74dfc",
+      "name": "AI Resume Analysis",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        430,
+        300
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "You are an expert recruiter. Score this resume 1-10 against the job description. Return JSON: {score, strengths:[], gaps:[], recommendation, summary}. Input: {{$json}}"
+      }
+    },
+    {
+      "id": "571796c1-67f0-4f86-841c-dc7f0cebb07f",
+      "name": "Score >= 7?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.score || 0}}",
+              "operation": "largerEqual",
+              "value2": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5c0b539e-761d-4c0b-ac6d-52a0702779ea",
+      "name": "Shortlist Actions",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        860,
+        220
+      ],
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "SHORTLIST"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "832effa2-a121-41ec-b127-a1d84670f793",
+      "name": "Reject Actions",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        860,
+        390
+      ],
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "REJECTED"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "06ff6807-ff5d-4578-aa4a-c4e6292f5500",
+      "name": "Save Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1090,
+        300
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/webhook-data/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.DASHBOARD_JWT_TOKEN}}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Resume Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Resume Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Resume Analysis": {
+      "main": [
+        [
+          {
+            "node": "Score >= 7?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 7?": {
+      "main": [
+        [
+          {
+            "node": "Shortlist Actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shortlist Actions": {
+      "main": [
+        [
+          {
+            "node": "Save Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject Actions": {
+      "main": [
+        [
+          {
+            "node": "Save Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a60b9175-93a6-4b02-bc0f-3aae06787a73",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

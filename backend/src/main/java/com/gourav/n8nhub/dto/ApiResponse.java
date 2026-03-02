@@ -1,0 +1,9 @@
+package com.gourav.n8nhub.dto;
+
+import java.time.Instant;
+
+public record ApiResponse(boolean success, Object data, String message, Instant timestamp) {
+  public static ApiResponse ok(Object data, String message) {
+    return new ApiResponse(true, data, message, Instant.now());
+  }
+}

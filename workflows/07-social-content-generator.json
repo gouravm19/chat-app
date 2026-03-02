@@ -1,0 +1,170 @@
+{
+  "name": "07 Social Media Content Generator",
+  "nodes": [
+    {
+      "id": "49e8af6a-a5d5-452f-80f4-3508deb904aa",
+      "name": "New Blog Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        180,
+        280
+      ],
+      "parameters": {
+        "path": "new-blog-post",
+        "httpMethod": "POST"
+      }
+    },
+    {
+      "id": "53ce32d0-1fd0-4070-af86-79c43077ca2f",
+      "name": "LinkedIn Copy",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        420,
+        180
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Write LinkedIn post (3 paragraphs, 3 hashtags, max 1300 chars) for: {{$json.title}}"
+      }
+    },
+    {
+      "id": "4b427edc-81d0-45a5-bfc4-ca2fcdd562ba",
+      "name": "Twitter Thread",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        420,
+        280
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Write 5 tweet thread max 280 chars each with CTA for: {{$json.content}}"
+      }
+    },
+    {
+      "id": "c9e83a99-87de-4107-b015-aeb149aa0b6c",
+      "name": "Dev Summary",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        420,
+        380
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Write 200-word technical summary for Dev.to/Hashnode for: {{$json.title}}"
+      }
+    },
+    {
+      "id": "a7f520a2-ff7a-4dc8-a684-ecc8cb0f6004",
+      "name": "Merge Content",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        680,
+        280
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "d15c1f75-12ac-47a5-b07c-47d24f36adc4",
+      "name": "Save Generated Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        280
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/webhook-data/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    }
+  ],
+  "connections": {
+    "New Blog Webhook": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Copy",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Twitter Thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Dev Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Copy": {
+      "main": [
+        [
+          {
+            "node": "Merge Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Thread": {
+      "main": [
+        [
+          {
+            "node": "Merge Content",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Dev Summary": {
+      "main": [
+        [
+          {
+            "node": "Merge Content",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge Content": {
+      "main": [
+        [
+          {
+            "node": "Save Generated Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "95dd0f0b-3a8f-4b65-9ea2-9ebaf17f0e4f",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}

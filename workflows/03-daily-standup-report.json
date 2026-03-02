@@ -1,0 +1,169 @@
+{
+  "name": "03 Automated Daily Standup Report",
+  "nodes": [
+    {
+      "id": "a74a57e0-8097-42b8-a022-a65ec5bf3e2e",
+      "name": "Weekday 9AM Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        180,
+        260
+      ],
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "75a633a2-2dce-422a-9ad1-4ef0f7f2e59e",
+      "name": "Get Commits",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        410,
+        200
+      ],
+      "parameters": {
+        "url": "https://api.github.com/orgs/YOUR_ORG/events",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "caf6b303-d644-490a-b885-f7fa6140b4d6",
+      "name": "Get Jira Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        410,
+        340
+      ],
+      "parameters": {
+        "url": "{{$env.JIRA_BASE_URL}}/rest/api/3/search?jql=updated>=-1d",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "f95c606f-8eb7-42bf-b905-24fe7098e1f0",
+      "name": "Merge Activity",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        620,
+        260
+      ],
+      "parameters": {
+        "mode": "combine"
+      }
+    },
+    {
+      "id": "78f74537-b4db-4686-a449-b0ebd6d1ebad",
+      "name": "Generate Standup",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [
+        840,
+        260
+      ],
+      "parameters": {
+        "operation": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Based on commits and Jira updates, write concise standup notes: {{$json}}"
+      }
+    },
+    {
+      "id": "75158fab-488d-42ee-94af-5fbe8542c44a",
+      "name": "Save Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        260
+      ],
+      "parameters": {
+        "url": "http://companion-api:8080/api/webhook-data/save",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json}}"
+      }
+    }
+  ],
+  "connections": {
+    "Weekday 9AM Cron": {
+      "main": [
+        [
+          {
+            "node": "Get Commits",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Jira Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Commits": {
+      "main": [
+        [
+          {
+            "node": "Merge Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Jira Updates": {
+      "main": [
+        [
+          {
+            "node": "Merge Activity",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Activity": {
+      "main": [
+        [
+          {
+            "node": "Generate Standup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Standup": {
+      "main": [
+        [
+          {
+            "node": "Save Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0cc8af80-6c64-479a-b6d1-b489aa9fa153",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {}
+}
